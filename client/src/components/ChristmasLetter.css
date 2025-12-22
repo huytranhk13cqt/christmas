@@ -1,0 +1,517 @@
+/* ========================================
+   CHRISTMAS LETTER - REDESIGNED
+   Clean separation: Envelope -> Letter
+   ======================================== */
+
+/* Overlay */
+.letter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  backdrop-filter: blur(10px);
+}
+
+.letter-overlay.visible {
+  opacity: 1;
+}
+
+/* ========================================
+   ENVELOPE SCENE (Phase 1 & 2)
+   ======================================== */
+.envelope-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.envelope-3d {
+  position: relative;
+  width: 320px;
+  height: 200px;
+  transform-style: preserve-3d;
+  transition: transform 0.6s ease;
+}
+
+/* Phần sau phong bì */
+.envelope-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #c9a962;
+  border-radius: 10px;
+  z-index: 1;
+}
+
+/* Thân phong bì phía trước */
+.envelope-front {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, #fff8dc 0%, #f5deb3 100%);
+  border-radius: 10px;
+  z-index: 3;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.envelope-decoration {
+  position: absolute;
+  bottom: 20px;
+  right: 25px;
+  font-size: 2.5rem;
+  opacity: 0.3;
+}
+
+/* Nắp phong bì (tam giác) */
+.envelope-flap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-left: 160px solid transparent;
+  border-right: 160px solid transparent;
+  border-top: 100px solid #deb887;
+  transform-origin: top center;
+  z-index: 4;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Con dấu */
+.envelope-seal {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 65px;
+  height: 65px;
+  background: linear-gradient(145deg, #c41e3a, #8b0000);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  z-index: 5;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+  transition: all 0.4s ease;
+}
+
+/* Animation khi mở */
+.envelope-3d.opening {
+  animation: envelopeShake 0.3s ease-in-out, envelopeFadeOut 1.2s ease forwards 0.3s;
+}
+
+.envelope-3d.opening .envelope-flap {
+  transform: rotateX(180deg);
+}
+
+.envelope-3d.opening .envelope-seal {
+  opacity: 0;
+  transform: translateX(-50%) scale(0) rotate(180deg);
+}
+
+@keyframes envelopeShake {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-3deg); }
+  75% { transform: rotate(3deg); }
+}
+
+@keyframes envelopeFadeOut {
+  0% { opacity: 1; transform: scale(1); }
+  60% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(0.8) translateY(-50px); }
+}
+
+/* Hint */
+.envelope-hint {
+  margin-top: 30px;
+  padding: 12px 25px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #c41e3a;
+  border-radius: 25px;
+  font-family: var(--font-christmas);
+  font-size: 1.1rem;
+  font-weight: 600;
+  animation: hintBounce 1s ease-in-out infinite;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes hintBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ========================================
+   LETTER SCENE (Phase 3)
+   ======================================== */
+.letter-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  animation: letterFadeIn 0.6s ease;
+}
+
+@keyframes letterFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Container cho scroll - chứa lá thư */
+.letter-scroll-container {
+  flex: 1;
+  width: 100%;
+  max-width: 480px;
+  min-height: 0; /* Quan trọng cho flex scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  box-sizing: border-box;
+  
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #c41e3a rgba(255,255,255,0.2);
+}
+
+.letter-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.letter-scroll-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.letter-scroll-container::-webkit-scrollbar-thumb {
+  background: #c41e3a;
+  border-radius: 4px;
+}
+
+/* Lá thư - Nội dung bên trong */
+.letter-paper-full {
+  background: linear-gradient(180deg, #fffef9 0%, #fff8dc 100%);
+  border-radius: 15px;
+  padding: 30px 25px;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 0 0 4px rgba(255, 215, 0, 0.5);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Header trang trí */
+.letter-header-deco {
+  text-align: center;
+  padding-bottom: 15px;
+  border-bottom: 3px dashed #c41e3a;
+  margin-bottom: 20px;
+}
+
+.letter-header-deco span {
+  font-size: 1.8rem;
+  margin: 0 6px;
+  display: inline-block;
+  animation: decoTwinkle 1.5s ease-in-out infinite;
+}
+
+.letter-header-deco span:nth-child(1) { animation-delay: 0s; }
+.letter-header-deco span:nth-child(2) { animation-delay: 0.2s; }
+.letter-header-deco span:nth-child(3) { animation-delay: 0.4s; }
+.letter-header-deco span:nth-child(4) { animation-delay: 0.6s; }
+.letter-header-deco span:nth-child(5) { animation-delay: 0.8s; }
+
+@keyframes decoTwinkle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+
+/* Tiêu đề chính */
+.letter-main-title {
+  font-family: var(--font-christmas);
+  font-size: 2.2rem;
+  color: #c41e3a;
+  text-align: center;
+  margin-bottom: 20px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  word-wrap: break-word;
+}
+
+/* Nội dung thư */
+.letter-body-content {
+  font-family: var(--font-script);
+  color: #2c1810;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.letter-greeting {
+  font-style: italic;
+  color: #5a3d2b;
+  margin-bottom: 15px;
+  font-size: 1.15rem;
+}
+
+.letter-body-content p {
+  margin-bottom: 14px;
+  text-align: justify;
+}
+
+.letter-signature-block {
+  margin-top: 20px;
+  text-align: right;
+  padding-right: 10px;
+}
+
+.letter-signature-block .signature-name {
+  font-size: 1.3rem;
+  color: #c41e3a;
+  font-weight: 700;
+  margin-top: 5px;
+  display: block;
+}
+
+/* Highlight Text */
+.highlight-text {
+  background: linear-gradient(120deg, #ff6b6b 0%, #c41e3a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  font-size: 1.2em;
+  display: inline;
+}
+
+/* Love Quote */
+.letter-love-quote {
+  text-align: center;
+  padding: 15px 20px;
+  margin: 20px 0;
+  background: linear-gradient(145deg, rgba(255, 182, 193, 0.3), rgba(255, 105, 180, 0.2));
+  border-radius: 15px;
+  border-left: 4px solid #ff69b4;
+  border-right: 4px solid #ff69b4;
+}
+
+.letter-love-quote em {
+  font-size: 1.1rem;
+  color: #c41e3a;
+  font-style: italic;
+}
+
+.quote-icon {
+  font-size: 1.2rem;
+  margin: 0 8px;
+  animation: twinkle 1.5s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+/* Envelope Hearts */
+.envelope-hearts {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+}
+
+.envelope-hearts span {
+  animation: heartBeat 1.2s ease-in-out infinite;
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.1); }
+  50% { transform: scale(1); }
+  75% { transform: scale(1.15); }
+}
+
+/* Signature Date */
+.signature-date {
+  font-size: 0.9rem;
+  color: #888;
+  font-style: italic;
+  margin-top: 5px;
+}
+
+/* Footer trang trí */
+.letter-footer-deco {
+  text-align: center;
+  padding-top: 18px;
+  border-top: 3px dashed #c41e3a;
+  margin-top: 20px;
+}
+
+.letter-footer-deco span {
+  font-size: 1.6rem;
+  margin: 0 8px;
+  display: inline-block;
+  animation: footerBounce 2s ease-in-out infinite;
+}
+
+.letter-footer-deco span:nth-child(1) { animation-delay: 0s; }
+.letter-footer-deco span:nth-child(2) { animation-delay: 0.15s; }
+.letter-footer-deco span:nth-child(3) { animation-delay: 0.3s; }
+.letter-footer-deco span:nth-child(4) { animation-delay: 0.45s; }
+.letter-footer-deco span:nth-child(5) { animation-delay: 0.6s; }
+
+@keyframes footerBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* P.S. Section */
+.letter-ps {
+  margin-top: 20px;
+  padding: 12px 15px;
+  background: linear-gradient(145deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05));
+  border-radius: 10px;
+  border: 1px dashed #ffd700;
+}
+
+.letter-ps p {
+  font-size: 0.95rem;
+  color: #8b4513;
+  font-style: italic;
+  text-align: center;
+  margin: 0;
+}
+
+/* Nút đóng */
+.letter-close-btn {
+  margin-top: 20px;
+  padding: 14px 40px;
+  background: linear-gradient(145deg, #c41e3a, #8b0000);
+  color: white;
+  border: 3px solid #ffd700;
+  border-radius: 30px;
+  font-family: var(--font-christmas);
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 30px rgba(196, 30, 58, 0.5);
+  flex-shrink: 0;
+}
+
+.letter-close-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 40px rgba(196, 30, 58, 0.7);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+@media (max-width: 480px) {
+  .envelope-3d {
+    width: 280px;
+    height: 175px;
+  }
+
+  .envelope-flap {
+    border-left: 140px solid transparent;
+    border-right: 140px solid transparent;
+    border-top: 90px solid #deb887;
+  }
+
+  .envelope-seal {
+    width: 55px;
+    height: 55px;
+    font-size: 1.8rem;
+    top: 25px;
+  }
+
+  .letter-scene {
+    padding: 15px 10px;
+  }
+
+  .letter-paper-full {
+    padding: 20px 18px;
+  }
+
+  .letter-main-title {
+    font-size: 1.8rem;
+  }
+
+  .letter-body-content {
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .letter-header-deco span {
+    font-size: 1.4rem;
+    margin: 0 4px;
+  }
+  
+  .letter-footer-deco span {
+    font-size: 1.3rem;
+    margin: 0 5px;
+  }
+
+  .letter-close-btn {
+    padding: 12px 30px;
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-height: 650px) {
+  .letter-scene {
+    padding: 10px;
+  }
+  
+  .letter-paper-full {
+    padding: 15px;
+  }
+  
+  .letter-main-title {
+    font-size: 1.6rem;
+    margin-bottom: 12px;
+  }
+  
+  .letter-body-content {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  
+  .letter-body-content p {
+    margin-bottom: 10px;
+  }
+  
+  .letter-header-deco,
+  .letter-footer-deco {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  
+  .letter-close-btn {
+    margin-top: 15px;
+    padding: 10px 25px;
+  }
+}

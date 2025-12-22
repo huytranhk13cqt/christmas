@@ -1,0 +1,106 @@
+/* ========================================
+   PARALLAX SNOW COMPONENT STYLES
+   ======================================== */
+
+.parallax-snow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.snow-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s ease-out;
+}
+
+.snow-layer.layer-0 {
+  z-index: 1;
+}
+
+.snow-layer.layer-1 {
+  z-index: 2;
+}
+
+.snow-layer.layer-2 {
+  z-index: 3;
+}
+
+.snow-layer .snowflake {
+  position: absolute;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(200, 230, 255, 0.8) 50%,
+    rgba(135, 206, 250, 0.4) 100%
+  );
+  border-radius: 50%;
+  animation: snowFall linear infinite;
+  box-shadow:
+    0 0 5px rgba(255, 255, 255, 0.8),
+    0 0 10px rgba(135, 206, 250, 0.4);
+}
+
+/* Different speeds for each layer */
+.layer-0 .snowflake {
+  animation-duration: 15s;
+  filter: blur(1px);
+}
+
+.layer-1 .snowflake {
+  animation-duration: 12s;
+  filter: blur(0.5px);
+}
+
+.layer-2 .snowflake {
+  animation-duration: 8s;
+}
+
+@keyframes snowFall {
+  0% {
+    transform: translateY(-20px) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(50vh) translateX(var(--sway, 15px)) rotate(180deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(110vh) translateX(calc(var(--sway, 15px) * -1)) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Sparkle effect on some flakes */
+.layer-2 .snowflake:nth-child(odd) {
+  animation: snowFall linear infinite, sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    box-shadow:
+      0 0 5px rgba(255, 255, 255, 0.8),
+      0 0 10px rgba(135, 206, 250, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(255, 255, 255, 1),
+      0 0 20px rgba(135, 206, 250, 0.8),
+      0 0 30px rgba(255, 215, 0, 0.3);
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .parallax-snow {
+    display: none;
+  }
+}
