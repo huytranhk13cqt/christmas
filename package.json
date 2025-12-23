@@ -12,5 +12,8 @@
     "build": "cd client && npm install && npm run build && cd ../server && npm install",
     "start": "cd server && npm start",
     "postinstall": "npm run build"
+  },
+  "dependencies": {
+    "mongodb": "^7.0.0"
   }
 }

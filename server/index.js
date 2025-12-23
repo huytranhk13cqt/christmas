@@ -4,6 +4,8 @@
  * API endpoints:
  * - GET /api/images - Lấy danh sách ảnh trong thư mục images
  * - GET /api/music - Lấy danh sách nhạc trong thư mục music
+ * - POST /api/save-result - Lưu kết quả chọn quà
+ * - GET /api/results - Lấy danh sách kết quả đã chọn
  */
 
 import express from "express";
@@ -11,6 +13,7 @@ import cors from "cors";
 import { readdirSync, existsSync, mkdirSync, writeFileSync, readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { MongoClient } from "mongodb";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,14 +21,50 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Đường dẫn tới thư mục public của client
+// ==================== MongoDB Configuration ====================
+// Railway MongoDB environment variables
+const MONGO_URL = process.env.MONGO_URL || null;
+const DB_NAME = process.env.DB_NAME || "christmas_gift";
+const COLLECTION_NAME = "gift_selections";
+
+let db = null;
+let mongoConnected = false;
+
+/**
+ * Kết nối MongoDB
+ */
+async function connectMongoDB() {
+  if (!MONGO_URL) {
+    console.log("⚠️  MONGO_URL chưa được cấu hình, sử dụng file storage");
+    return false;
+  }
+
+  try {
+    const client = new MongoClient(MONGO_URL);
+    await client.connect();
+    db = client.db(DB_NAME);
+
+    // Test connection
+    await db.command({ ping: 1 });
+
+    console.log("✅ Đã kết nối MongoDB thành công!");
+    console.log(`📦 Database: ${DB_NAME}`);
+    console.log(`📁 Collection: ${COLLECTION_NAME}`);
+
+    mongoConnected = true;
+    return true;
+  } catch (error) {
+    console.error("❌ Lỗi kết nối MongoDB:", error.message);
+    console.log("⚠️  Fallback về file storage");
+    return false;
+  }
+}
+
+// ==================== File Storage Paths ====================
 const PUBLIC_DIR = join(__dirname, "../client/public");
 const RESULT_DIR = join(__dirname, "../result");
-
-// Production: Đường dẫn tới React build
 const CLIENT_BUILD_DIR = join(__dirname, "../client/dist");
 
-// Dùng thư mục build trong production, public trong development
 const isProduction = existsSync(CLIENT_BUILD_DIR);
 const ASSETS_DIR = isProduction ? CLIENT_BUILD_DIR : PUBLIC_DIR;
 const IMAGES_DIR = join(ASSETS_DIR, "images");
@@ -115,14 +154,18 @@ app.get("/api/music", (req, res) => {
  * API: Health check
  */
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "🎄 Server đang hoạt động!" });
+  res.json({
+    status: "ok",
+    message: "🎄 Server đang hoạt động!",
+    storage: mongoConnected ? "MongoDB" : "File System"
+  });
 });
 
 /**
  * API: Lưu kết quả chọn quà
  * POST /api/save-result
  */
-app.post("/api/save-result", (req, res) => {
+app.post("/api/save-result", async (req, res) => {
   try {
     const { giftImageName, giftImageUrl, giftIndex, recipientName, confirmedAt } = req.body;
 
@@ -130,21 +173,6 @@ app.post("/api/save-result", (req, res) => {
       return res.status(400).json({ error: "Thiếu thông tin quà" });
     }
 
-    const resultFile = join(RESULT_DIR, "gift-selection.json");
-
-    // Đọc file cũ nếu có
-    let results = [];
-    if (existsSync(resultFile)) {
-      try {
-        const existingData = readFileSync(resultFile, "utf-8");
-        results = JSON.parse(existingData);
-        if (!Array.isArray(results)) results = [results];
-      } catch {
-        results = [];
-      }
-    }
-
-    // Thêm kết quả mới
     const newResult = {
       id: Date.now(),
       giftImageName,
@@ -155,18 +183,35 @@ app.post("/api/save-result", (req, res) => {
       serverTime: new Date().toISOString(),
     };
 
-    results.push(newResult);
+    // Sử dụng MongoDB nếu đã kết nối
+    if (mongoConnected && db) {
+      await db.collection(COLLECTION_NAME).insertOne(newResult);
+      console.log(`💝 Đã lưu kết quả vào MongoDB: ${giftImageName}`);
+    } else {
+      // Fallback về file storage
+      const resultFile = join(RESULT_DIR, "gift-selection.json");
 
-    // Ghi file
-    writeFileSync(resultFile, JSON.stringify(results, null, 2), "utf-8");
+      let results = [];
+      if (existsSync(resultFile)) {
+        try {
+          const existingData = readFileSync(resultFile, "utf-8");
+          results = JSON.parse(existingData);
+          if (!Array.isArray(results)) results = [results];
+        } catch {
+          results = [];
+        }
+      }
 
-    console.log(`💝 Đã lưu kết quả: ${giftImageName}`);
-    console.log(`📁 File: ${resultFile}`);
+      results.push(newResult);
+      writeFileSync(resultFile, JSON.stringify(results, null, 2), "utf-8");
+      console.log(`💝 Đã lưu kết quả vào file: ${giftImageName}`);
+    }
 
     res.json({
       success: true,
       message: "Đã lưu kết quả thành công!",
-      result: newResult
+      result: newResult,
+      storage: mongoConnected ? "MongoDB" : "File System"
     });
   } catch (error) {
     console.error("Lỗi khi lưu kết quả:", error);
@@ -178,20 +223,29 @@ app.post("/api/save-result", (req, res) => {
  * API: Lấy kết quả đã chọn
  * GET /api/results
  */
-app.get("/api/results", (req, res) => {
+app.get("/api/results", async (req, res) => {
   try {
-    const resultFile = join(RESULT_DIR, "gift-selection.json");
+    let results = [];
 
-    if (!existsSync(resultFile)) {
-      return res.json({ results: [], count: 0 });
+    // Sử dụng MongoDB nếu đã kết nối
+    if (mongoConnected && db) {
+      results = await db.collection(COLLECTION_NAME).find({}).sort({ serverTime: -1 }).toArray();
+      console.log(`📊 Đọc ${results.length} kết quả từ MongoDB`);
+    } else {
+      // Fallback về file storage
+      const resultFile = join(RESULT_DIR, "gift-selection.json");
+
+      if (existsSync(resultFile)) {
+        const data = readFileSync(resultFile, "utf-8");
+        results = JSON.parse(data);
+        if (!Array.isArray(results)) results = [results];
+      }
     }
 
-    const data = readFileSync(resultFile, "utf-8");
-    const results = JSON.parse(data);
-
     res.json({
-      results: Array.isArray(results) ? results : [results],
-      count: Array.isArray(results) ? results.length : 1,
+      results,
+      count: results.length,
+      storage: mongoConnected ? "MongoDB" : "File System"
     });
   } catch (error) {
     console.error("Lỗi khi đọc kết quả:", error);
@@ -201,12 +255,9 @@ app.get("/api/results", (req, res) => {
 
 // Production: Serve React build
 if (existsSync(CLIENT_BUILD_DIR)) {
-  // Serve static files từ React build
   app.use(express.static(CLIENT_BUILD_DIR));
 
-  // SPA fallback - mọi route không match API sẽ trả về index.html
   app.get("*", (req, res) => {
-    // Không redirect các API routes
     if (req.path.startsWith("/api/") || req.path.startsWith("/images/") || req.path.startsWith("/music/")) {
       return res.status(404).json({ error: "Not found" });
     }
@@ -216,21 +267,27 @@ if (existsSync(CLIENT_BUILD_DIR)) {
   console.log("📦 Production mode: Serving React build from", CLIENT_BUILD_DIR);
 }
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`
+// Start server với MongoDB connection
+async function startServer() {
+  // Kết nối MongoDB trước
+  await connectMongoDB();
+
+  // Start Express server
+  app.listen(PORT, () => {
+    console.log(`
   🎄 ================================= 🎄
   🎁 Christmas Gift Reveal Server
   🎄 ================================= 🎄
 
   🚀 Server đang chạy tại: http://localhost:${PORT}
   📦 Mode: ${isProduction ? "Production" : "Development"}
+  💾 Storage: ${mongoConnected ? "MongoDB" : "File System"}
 
   📁 Thư mục ảnh: ${IMAGES_DIR}
   🎵 Thư mục nhạc: ${MUSIC_DIR}
-  💝 Thư mục kết quả: ${RESULT_DIR}
-
-  📌 Hãy thêm ảnh vào thư mục 'images' và nhạc vào thư mục 'music'!
-  💡 Kết quả chọn quà sẽ được lưu vào: ${RESULT_DIR}/gift-selection.json
+  💝 Kết quả: ${mongoConnected ? "MongoDB - " + DB_NAME + "/" + COLLECTION_NAME : RESULT_DIR + "/gift-selection.json"}
   `);
-});
+  });
+}
+
+startServer();
